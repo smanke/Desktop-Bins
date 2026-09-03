@@ -3,7 +3,7 @@ import Foundation
 /// Talks to Finder over Apple Events (AppleScript) to read and set desktop
 /// icon positions. Positions are stored and replayed exactly as Finder
 /// reports them, so no coordinate-space conversion is needed for capture/
-/// restore — only for testing whether a point falls inside a fence's frame.
+/// restore — only for testing whether a point falls inside a bin's frame.
 enum FinderDesktopController {
     struct Item {
         let name: String
@@ -44,7 +44,7 @@ enum FinderDesktopController {
 
     /// Moves each named item back to its stored position. Items that no
     /// longer exist (renamed/deleted/moved) are skipped individually.
-    static func setPositions(_ members: [FenceMember]) {
+    static func setPositions(_ members: [BinMember]) {
         guard !members.isEmpty else { return }
         var body = "tell application \"Finder\"\n"
         for member in members {
@@ -75,7 +75,7 @@ enum FinderDesktopController {
 
         if let errorInfo {
             let code = (errorInfo[NSAppleScript.errorNumber] as? Int) ?? 0
-            NSLog("DesktopFences: AppleScript error talking to Finder (\(code)): \(errorInfo)")
+            NSLog("DesktopBins: AppleScript error talking to Finder (\(code)): \(errorInfo)")
 
             // -1743 is "not authorized to send Apple Events" — the user has
             // not granted Automation access, which silently breaks everything.

@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "DesktopFences",
+    name: "DesktopBins",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "DesktopFences",
-            path: "Sources/DesktopFences"
+            name: "DesktopBins",
+            path: "Sources/DesktopBins"
         )
     ]
 )

@@ -5,7 +5,7 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Toggle("Snap icons to a grid inside fences", isOn: $settings.snapEnabled)
+            Toggle("Snap icons to a grid inside bins", isOn: $settings.snapEnabled)
                 .font(.system(size: 13, weight: .semibold))
 
             VStack(alignment: .leading, spacing: 12) {
@@ -28,7 +28,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Toggle("Pack icons together, without gaps", isOn: $settings.packIcons)
                 Text(settings.packIcons
-                     ? "Icons refill from the top-left of the fence in order, leaving no empty cells."
+                     ? "Icons refill from the top-left of the bin in order, leaving no empty cells."
                      : "Icons stay in whichever cell you drop them near, so gaps between them are preserved.")
                     .font(.caption)
                     .foregroundColor(.secondary)

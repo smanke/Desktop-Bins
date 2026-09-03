@@ -6,21 +6,21 @@ grid, and carry them along when the region is moved.
 
 ## Features
 
-- Draggable, resizable, titled fences drawn on the desktop
+- Draggable, resizable, titled bins drawn on the desktop
 - Icons dropped inside snap to a configurable grid
-- Moving a fence moves the icons it contains
+- Moving a bin moves the icons it contains
 - Optional gap-free packing (icons refill from the top-left, no holes)
-- Collapse/expand a fence to just its title bar (double-click the title bar)
+- Collapse/expand a bin to just its title bar (double-click the title bar)
 - Rename, recolor and delete via right-click or ⌘-click on the title bar
-- Save / restore an icon layout per fence
+- Save / restore an icon layout per bin
 - Grid spacing presets and settings in the menu bar
 
 ## Building
 
 ```bash
 ./build_app.sh
-cp -R ".build/app/Desktop Fences.app" /Applications/
-open "/Applications/Desktop Fences.app"
+cp -R ".build/app/Desktop Bins.app" /Applications/
+open "/Applications/Desktop Bins.app"
 ```
 
 Requires macOS 13+. The build produces a universal (arm64 + x86_64) bundle.
@@ -50,10 +50,10 @@ y growing upward. Conversion is `finderY = primaryScreenHeight - appKitY`.
 ### Window layering
 
 macOS offers no single window level that both draws behind desktop icons and
-receives clicks, so each fence is three windows:
+receives clicks, so each bin is three windows:
 
 - a **backdrop** below Finder's icon layer (`desktopWindow + 1`) that ignores
-  mouse events and draws the fence — this keeps the fence body live Finder
+  mouse events and draws the bin — this keeps the bin body live Finder
   desktop, so icons can be dragged in, out and around normally;
 - two small **chrome** windows above the icon layer
   (`desktopIconWindow + 1`) for the title bar strip and resize corner, which
@@ -67,7 +67,7 @@ back to where it came from.
 
 The bundle is signed with `--options runtime`, which requires the
 `com.apple.security.automation.apple-events` entitlement
-(`Resources/DesktopFences.entitlements`). Without it the Apple Event is
+(`Resources/DesktopBins.entitlements`). Without it the Apple Event is
 blocked *before* TCC is consulted: no consent prompt appears, the app never
 shows up under Automation in System Settings, and every Finder call fails
 silently.
@@ -84,7 +84,7 @@ on **every rebuild**, which invalidates the Automation grant each time. When
 that happens, Finder control fails silently; recover with:
 
 ```bash
-tccutil reset AppleEvents com.smanke.DesktopFences
+tccutil reset AppleEvents com.smanke.DesktopBins
 ```
 
 then relaunch and approve the prompt. Signing with a stable (self-signed)
@@ -94,7 +94,7 @@ certificate would make the grant persist across builds.
 
 - All Finder scripting is serialized on one queue; `NSAppleScript` is not
   thread safe.
-- Icons follow a fence drag live, throttled to 50 ms with overlapping frames
+- Icons follow a bin drag live, throttled to 50 ms with overlapping frames
   dropped, since each update is an Apple Event round trip. They will trail
   slightly at high drag speeds.
 - Grid layout is anchored to the primary display; secondary displays are not

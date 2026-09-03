@@ -15,7 +15,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
         let hosting = NSHostingController(rootView: SettingsView(settings: SettingsStore.shared))
         let window = NSWindow(contentViewController: hosting)
-        window.title = "Desktop Fences Settings"
+        window.title = "Desktop Bins Settings"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false
         window.delegate = self

@@ -4,7 +4,7 @@ import AppKit
 /// spacing and packing state always show the right checkmarks.
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
-    private let windowController: FenceWindowController
+    private let windowController: BinWindowController
     private let settingsWindowController = SettingsWindowController()
 
     private static let spacingPresets: [(name: String, value: Double)] = [
@@ -15,13 +15,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         ("Wide (144 pt)", 144)
     ]
 
-    init(windowController: FenceWindowController) {
+    init(windowController: BinWindowController) {
         self.windowController = windowController
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
 
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "square.grid.2x2", accessibilityDescription: "Desktop Fences")
+            button.image = NSImage(systemSymbolName: "square.grid.2x2", accessibilityDescription: "Desktop Bins")
         }
 
         let menu = NSMenu()
@@ -33,7 +33,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let settings = SettingsStore.shared
         menu.removeAllItems()
 
-        menu.addItem(withTitle: "New Fence", action: #selector(newFence), keyEquivalent: "n", target: self)
+        menu.addItem(withTitle: "New Bin", action: #selector(newBin), keyEquivalent: "n", target: self)
         menu.addItem(.separator())
 
         let snapItem = menu.addItem(withTitle: "Snap Icons to Grid", action: #selector(toggleSnap), keyEquivalent: "", target: self)
@@ -63,15 +63,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(withTitle: "Restore All Icon Positions", action: #selector(restoreAll), keyEquivalent: "", target: self)
         menu.addItem(.separator())
 
-        let visibilityTitle = windowController.isVisible ? "Hide All Fences" : "Show All Fences"
+        let visibilityTitle = windowController.isVisible ? "Hide All Bins" : "Show All Bins"
         menu.addItem(withTitle: visibilityTitle, action: #selector(toggleVisibility), keyEquivalent: "", target: self)
         menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",", target: self)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Desktop Fences", action: #selector(quit), keyEquivalent: "q", target: self)
+        menu.addItem(withTitle: "Quit Desktop Bins", action: #selector(quit), keyEquivalent: "q", target: self)
     }
 
-    @objc private func newFence() {
-        windowController.addFenceAtCenterOfMainScreen()
+    @objc private func newBin() {
+        windowController.addBinAtCenterOfMainScreen()
     }
 
     @objc private func toggleSnap() {
@@ -94,7 +94,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func restoreAll() {
-        windowController.restoreAllFences()
+        windowController.restoreAllBins()
     }
 
     @objc private func toggleVisibility() {

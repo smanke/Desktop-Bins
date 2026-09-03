@@ -1,37 +1,37 @@
 import AppKit
 
-/// Owns the windows backing each fence and keeps them in sync with the
-/// store. Every fence is three windows: a visual backdrop below the desktop
+/// Owns the windows backing each bin and keeps them in sync with the
+/// store. Every bin is three windows: a visual backdrop below the desktop
 /// icons, plus two small hit targets above them (title bar, resize corner).
-final class FenceWindowController: NSObject, FenceHitViewDelegate {
-    private struct FenceWindows {
-        let backdrop: FenceWindow
-        let titleBar: FenceWindow
-        let resizeHandle: FenceWindow
+final class BinWindowController: NSObject, BinHitViewDelegate {
+    private struct BinWindows {
+        let backdrop: BinWindow
+        let titleBar: BinWindow
+        let resizeHandle: BinWindow
 
-        var all: [FenceWindow] { [backdrop, titleBar, resizeHandle] }
+        var all: [BinWindow] { [backdrop, titleBar, resizeHandle] }
     }
 
-    private let store: FenceStore
-    private var windows: [UUID: FenceWindows] = [:]
+    private let store: BinStore
+    private var windows: [UUID: BinWindows] = [:]
     private var expandedHeights: [UUID: Double] = [:]
     private var gestureStartFrame: NSRect?
     private var gridSnapTimer: Timer?
     private(set) var isVisible = true
 
     /// Serializes every Finder script call; NSAppleScript is not thread safe.
-    private let finderQueue = DispatchQueue(label: "com.smanke.DesktopFences.finder")
-    private var dragMembers: [FenceMember] = []
+    private let finderQueue = DispatchQueue(label: "com.smanke.DesktopBins.finder")
+    private var dragMembers: [BinMember] = []
     private var dragUpdateInFlight = false
     private var lastDragUpdate = Date.distantPast
     private static let dragUpdateInterval: TimeInterval = 0.05
 
-    private static let minFenceWidth: CGFloat = 140
-    private static let minFenceHeight: CGFloat = 120
+    private static let minBinWidth: CGFloat = 140
+    private static let minBinHeight: CGFloat = 120
     private static let gridMargin: Double = 8
     private static let gridSnapInterval: TimeInterval = 1.5
 
-    init(store: FenceStore) {
+    init(store: BinStore) {
         self.store = store
         super.init()
         store.onChange = { [weak self] in self?.syncWindows() }
@@ -48,21 +48,21 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
     // MARK: - Window lifecycle
 
     func syncWindows() {
-        let currentIDs = Set(store.fences.map(\.id))
+        let currentIDs = Set(store.bins.map(\.id))
 
         for (id, set) in windows where !currentIDs.contains(id) {
             set.all.forEach { $0.close() }
             windows.removeValue(forKey: id)
         }
 
-        for fence in store.fences {
-            if let set = windows[fence.id] {
-                (set.backdrop.contentView as? FenceBackdropView)?.fence = fence
-                layout(set: set, fence: fence)
+        for bin in store.bins {
+            if let set = windows[bin.id] {
+                (set.backdrop.contentView as? BinBackdropView)?.bin = bin
+                layout(set: set, bin: bin)
             } else {
-                let set = makeWindows(for: fence)
-                windows[fence.id] = set
-                layout(set: set, fence: fence)
+                let set = makeWindows(for: bin)
+                windows[bin.id] = set
+                layout(set: set, bin: bin)
                 if isVisible {
                     set.all.forEach { $0.orderFront(nil) }
                 }
@@ -70,53 +70,53 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         }
     }
 
-    private func makeWindows(for fence: Fence) -> FenceWindows {
-        let frame = frameOf(fence)
+    private func makeWindows(for bin: Bin) -> BinWindows {
+        let frame = frameOf(bin)
 
-        let backdrop = FenceWindow(contentRect: frame, role: .backdrop)
-        let backdropView = FenceBackdropView(fence: fence)
+        let backdrop = BinWindow(contentRect: frame, role: .backdrop)
+        let backdropView = BinBackdropView(bin: bin)
         backdropView.frame = NSRect(origin: .zero, size: frame.size)
         backdrop.contentView = backdropView
 
-        let titleBar = FenceWindow(contentRect: titleBarFrame(for: frame), role: .chrome)
-        let titleBarView = FenceHitView(kind: .titleBar, fenceID: fence.id)
+        let titleBar = BinWindow(contentRect: titleBarFrame(for: frame), role: .chrome)
+        let titleBarView = BinHitView(kind: .titleBar, binID: bin.id)
         titleBarView.delegate = self
         titleBar.contentView = titleBarView
 
-        let resizeHandle = FenceWindow(contentRect: resizeHandleFrame(for: frame), role: .chrome)
-        let resizeView = FenceHitView(kind: .resizeHandle, fenceID: fence.id)
+        let resizeHandle = BinWindow(contentRect: resizeHandleFrame(for: frame), role: .chrome)
+        let resizeView = BinHitView(kind: .resizeHandle, binID: bin.id)
         resizeView.delegate = self
         resizeHandle.contentView = resizeView
 
-        return FenceWindows(backdrop: backdrop, titleBar: titleBar, resizeHandle: resizeHandle)
+        return BinWindows(backdrop: backdrop, titleBar: titleBar, resizeHandle: resizeHandle)
     }
 
-    private func frameOf(_ fence: Fence) -> NSRect {
-        NSRect(x: fence.x, y: fence.y, width: fence.width, height: fence.height)
+    private func frameOf(_ bin: Bin) -> NSRect {
+        NSRect(x: bin.x, y: bin.y, width: bin.width, height: bin.height)
     }
 
     private func titleBarFrame(for frame: NSRect) -> NSRect {
-        NSRect(x: frame.minX, y: frame.maxY - FenceMetrics.titleBarHeight, width: frame.width, height: FenceMetrics.titleBarHeight)
+        NSRect(x: frame.minX, y: frame.maxY - BinMetrics.titleBarHeight, width: frame.width, height: BinMetrics.titleBarHeight)
     }
 
     private func resizeHandleFrame(for frame: NSRect) -> NSRect {
         NSRect(
-            x: frame.maxX - FenceMetrics.resizeHandleSize,
+            x: frame.maxX - BinMetrics.resizeHandleSize,
             y: frame.minY,
-            width: FenceMetrics.resizeHandleSize,
-            height: FenceMetrics.resizeHandleSize
+            width: BinMetrics.resizeHandleSize,
+            height: BinMetrics.resizeHandleSize
         )
     }
 
-    /// Positions the whole window set to match a fence frame.
-    private func layout(set: FenceWindows, fence: Fence, frame: NSRect? = nil) {
-        let frame = frame ?? frameOf(fence)
+    /// Positions the whole window set to match a bin frame.
+    private func layout(set: BinWindows, bin: Bin, frame: NSRect? = nil) {
+        let frame = frame ?? frameOf(bin)
         set.backdrop.setFrame(frame, display: true)
         set.backdrop.contentView?.frame = NSRect(origin: .zero, size: frame.size)
         set.backdrop.contentView?.needsDisplay = true
         set.titleBar.setFrame(titleBarFrame(for: frame), display: true)
 
-        if fence.isCollapsed {
+        if bin.isCollapsed {
             set.resizeHandle.orderOut(nil)
         } else {
             set.resizeHandle.setFrame(resizeHandleFrame(for: frame), display: true)
@@ -127,7 +127,7 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
     func setAllVisible(_ visible: Bool) {
         isVisible = visible
         for (id, set) in windows {
-            let collapsed = store.fences.first { $0.id == id }?.isCollapsed ?? false
+            let collapsed = store.bins.first { $0.id == id }?.isCollapsed ?? false
             for window in set.all {
                 if visible {
                     if window === set.resizeHandle && collapsed { continue }
@@ -139,34 +139,34 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         }
     }
 
-    func addFenceAtCenterOfMainScreen() {
+    func addBinAtCenterOfMainScreen() {
         let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let width: CGFloat = 260
         let height: CGFloat = 240
         let colors = ["3B82F6", "10B981", "F59E0B", "EF4444", "8B5CF6", "EC4899"]
-        let fence = Fence(
-            title: "New Fence",
+        let bin = Bin(
+            title: "New Bin",
             x: Double(screenFrame.midX - width / 2),
             y: Double(screenFrame.midY - height / 2),
             width: Double(width),
             height: Double(height),
-            colorHex: colors[store.fences.count % colors.count]
+            colorHex: colors[store.bins.count % colors.count]
         )
-        store.addFence(fence)
+        store.addBin(bin)
     }
 
-    private func fence(for id: UUID) -> Fence? {
-        store.fences.first { $0.id == id }
+    private func bin(for id: UUID) -> Bin? {
+        store.bins.first { $0.id == id }
     }
 
-    // MARK: - FenceHitViewDelegate
+    // MARK: - BinHitViewDelegate
 
-    func fenceHitViewDidBeginGesture(_ view: FenceHitView) {
-        let frame = windows[view.fenceID]?.backdrop.frame
+    func binHitViewDidBeginGesture(_ view: BinHitView) {
+        let frame = windows[view.binID]?.backdrop.frame
         gestureStartFrame = frame
         dragMembers = []
 
-        // Snapshot what's inside the fence so the drag can shift those icons
+        // Snapshot what's inside the bin so the drag can shift those icons
         // live. Done off the main thread so mouse-down isn't stalled by the
         // Apple Event round trip.
         guard view.kind == .titleBar,
@@ -177,15 +177,15 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         finderQueue.async { [weak self] in
             let members = FinderDesktopController.currentDesktopItems()
                 .filter { startRect.contains(NSPoint(x: $0.x, y: $0.y)) }
-                .map { FenceMember(name: $0.name, x: $0.x, y: $0.y) }
+                .map { BinMember(name: $0.name, x: $0.x, y: $0.y) }
             DispatchQueue.main.async { self?.dragMembers = members }
         }
     }
 
-    func fenceHitView(_ view: FenceHitView, didDragBy delta: CGSize) {
+    func binHitView(_ view: BinHitView, didDragBy delta: CGSize) {
         guard let start = gestureStartFrame,
-              let set = windows[view.fenceID],
-              let fence = fence(for: view.fenceID) else { return }
+              let set = windows[view.binID],
+              let bin = bin(for: view.binID) else { return }
 
         let newFrame: NSRect
         switch view.kind {
@@ -197,19 +197,19 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
                 height: start.height
             )
         case .resizeHandle:
-            let width = max(Self.minFenceWidth, start.width + delta.width)
-            let height = max(Self.minFenceHeight, start.height - delta.height)
+            let width = max(Self.minBinWidth, start.width + delta.width)
+            let height = max(Self.minBinHeight, start.height - delta.height)
             newFrame = NSRect(x: start.origin.x, y: start.maxY - height, width: width, height: height)
         }
 
-        layout(set: set, fence: fence, frame: newFrame)
+        layout(set: set, bin: bin, frame: newFrame)
 
         if view.kind == .titleBar {
             dragIconsAlongside(delta: delta)
         }
     }
 
-    /// Shifts the captured icons to track the fence while it's being dragged.
+    /// Shifts the captured icons to track the bin while it's being dragged.
     /// Throttled, and overlapping frames are dropped, because each update is
     /// an Apple Event round trip to Finder.
     private func dragIconsAlongside(delta: CGSize) {
@@ -227,72 +227,72 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
     }
 
     /// AppKit's y grows upward, Finder's desktop coordinates grow downward.
-    private func shiftedMembers(_ members: [FenceMember], delta: CGSize) -> [FenceMember] {
-        members.map { FenceMember(name: $0.name, x: $0.x + Double(delta.width), y: $0.y - Double(delta.height)) }
+    private func shiftedMembers(_ members: [BinMember], delta: CGSize) -> [BinMember] {
+        members.map { BinMember(name: $0.name, x: $0.x + Double(delta.width), y: $0.y - Double(delta.height)) }
     }
 
-    func fenceHitViewDidEndGesture(_ view: FenceHitView) {
+    func binHitViewDidEndGesture(_ view: BinHitView) {
         let startFrame = gestureStartFrame
         gestureStartFrame = nil
-        guard var fence = fence(for: view.fenceID), let set = windows[view.fenceID] else { return }
+        guard var bin = bin(for: view.binID), let set = windows[view.binID] else { return }
         let frame = set.backdrop.frame
 
         if view.kind == .titleBar, let startFrame, startFrame.origin != frame.origin {
             let delta = CGSize(width: frame.origin.x - startFrame.origin.x, height: frame.origin.y - startFrame.origin.y)
             if dragMembers.isEmpty {
                 // The snapshot didn't finish in time; fall back to a direct read.
-                moveContainedIcons(from: startFrame, to: frame, fence: &fence)
+                moveContainedIcons(from: startFrame, to: frame, bin: &bin)
             } else {
                 // Land the icons exactly, since throttling may have dropped
                 // the last few drag frames.
                 let settled = shiftedMembers(dragMembers, delta: delta)
                 finderQueue.async { FinderDesktopController.setPositions(settled) }
-                fence.members = settled
+                bin.members = settled
             }
         }
         dragMembers = []
 
-        fence.x = Double(frame.origin.x)
-        fence.y = Double(frame.origin.y)
-        fence.width = Double(frame.width)
-        fence.height = Double(frame.height)
-        (set.backdrop.contentView as? FenceBackdropView)?.fence = fence
-        store.updateFence(fence)
+        bin.x = Double(frame.origin.x)
+        bin.y = Double(frame.origin.y)
+        bin.width = Double(frame.width)
+        bin.height = Double(frame.height)
+        (set.backdrop.contentView as? BinBackdropView)?.bin = bin
+        store.updateBin(bin)
     }
 
-    func fenceHitViewRequestsToggleCollapse(_ view: FenceHitView) {
-        guard var fence = fence(for: view.fenceID), let set = windows[view.fenceID] else { return }
+    func binHitViewRequestsToggleCollapse(_ view: BinHitView) {
+        guard var bin = bin(for: view.binID), let set = windows[view.binID] else { return }
         let frame = set.backdrop.frame
-        fence.isCollapsed.toggle()
+        bin.isCollapsed.toggle()
 
         let newHeight: CGFloat
-        if fence.isCollapsed {
-            expandedHeights[fence.id] = Double(frame.height)
-            newHeight = FenceMetrics.titleBarHeight
+        if bin.isCollapsed {
+            expandedHeights[bin.id] = Double(frame.height)
+            newHeight = BinMetrics.titleBarHeight
         } else {
-            newHeight = CGFloat(expandedHeights[fence.id] ?? 240)
+            newHeight = CGFloat(expandedHeights[bin.id] ?? 240)
         }
 
         let newFrame = NSRect(x: frame.minX, y: frame.maxY - newHeight, width: frame.width, height: newHeight)
-        fence.x = Double(newFrame.origin.x)
-        fence.y = Double(newFrame.origin.y)
-        fence.width = Double(newFrame.width)
-        fence.height = Double(newFrame.height)
+        bin.x = Double(newFrame.origin.x)
+        bin.y = Double(newFrame.origin.y)
+        bin.width = Double(newFrame.width)
+        bin.height = Double(newFrame.height)
 
-        (set.backdrop.contentView as? FenceBackdropView)?.fence = fence
-        layout(set: set, fence: fence, frame: newFrame)
-        store.updateFence(fence)
+        (set.backdrop.contentView as? BinBackdropView)?.bin = bin
+        layout(set: set, bin: bin, frame: newFrame)
+        store.updateBin(bin)
     }
 
-    func fenceHitViewContextMenu(_ view: FenceHitView) -> NSMenu {
-        buildMenu(for: view.fenceID)
+    func binHitViewContextMenu(_ view: BinHitView) -> NSMenu {
+        buildMenu(for: view.binID)
     }
 
-    /// A file dropped onto the fence's chrome (title bar or resize corner)
+    /// A file dropped onto the bin's chrome (title bar or resize corner)
     /// would otherwise be rejected, since those strips sit above Finder's
     /// icon layer. Place it into the cell the user aimed at instead.
-    func fenceHitView(_ view: FenceHitView, didDropFileURLs urls: [URL], atScreenPoint screenPoint: NSPoint) {
-        guard let set = windows[view.fenceID],
+    func binHitView(_ view: BinHitView, didDropFileURLs urls: [URL], atScreenPoint screenPoint: NSPoint) {
+        guard let set = windows[view.binID],
               let screenHeight = primaryScreenHeight(),
               let metrics = gridMetrics(forFrame: set.backdrop.frame, screenHeight: Double(screenHeight)) else { return }
 
@@ -317,7 +317,7 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         // sorts them into that slot and shifts the existing icons along,
         // rather than dropping them on top of whatever is already there.
         let placements = names.enumerated().map { index, name in
-            FenceMember(name: name, x: targetX - 24 + Double(index), y: targetY)
+            BinMember(name: name, x: targetX - 24 + Double(index), y: targetY)
         }
 
         finderQueue.async { [weak self] in
@@ -334,91 +334,91 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
 
     private func buildMenu(for id: UUID) -> NSMenu {
         let menu = NSMenu()
-        guard let fence = fence(for: id) else { return menu }
+        guard let bin = bin(for: id) else { return menu }
 
-        menu.addItem(withActionTitle: fence.isCollapsed ? "Expand Fence" : "Collapse Fence") { [weak self] in
-            guard let self, let view = self.windows[id]?.titleBar.contentView as? FenceHitView else { return }
-            self.fenceHitViewRequestsToggleCollapse(view)
+        menu.addItem(withActionTitle: bin.isCollapsed ? "Expand Bin" : "Collapse Bin") { [weak self] in
+            guard let self, let view = self.windows[id]?.titleBar.contentView as? BinHitView else { return }
+            self.binHitViewRequestsToggleCollapse(view)
         }
-        menu.addItem(withActionTitle: "Rename Fence…") { [weak self] in
-            self?.renameFence(id)
+        menu.addItem(withActionTitle: "Rename Bin…") { [weak self] in
+            self?.renameBin(id)
         }
         menu.addItem(withActionTitle: "Change Color…") { [weak self] in
             self?.changeColor(id)
         }
         menu.addItem(.separator())
-        let captureTitle = fence.members.isEmpty
+        let captureTitle = bin.members.isEmpty
             ? "Save Icon Layout"
-            : "Save Icon Layout (\(fence.members.count) saved)"
+            : "Save Icon Layout (\(bin.members.count) saved)"
         menu.addItem(withActionTitle: captureTitle) { [weak self] in
             self?.captureIcons(id)
         }
         let restoreItem = menu.addItem(withActionTitle: "Restore Saved Layout") { [weak self] in
             self?.restoreIcons(id)
         }
-        restoreItem.isEnabled = !fence.members.isEmpty
+        restoreItem.isEnabled = !bin.members.isEmpty
         menu.addItem(.separator())
-        menu.addItem(withActionTitle: "Delete Fence") { [weak self] in
-            self?.deleteFence(id)
+        menu.addItem(withActionTitle: "Delete Bin") { [weak self] in
+            self?.deleteBin(id)
         }
         return menu
     }
 
-    private func renameFence(_ id: UUID) {
-        guard var fence = fence(for: id) else { return }
+    private func renameBin(_ id: UUID) {
+        guard var bin = bin(for: id) else { return }
         let alert = NSAlert()
-        alert.messageText = "Rename Fence"
+        alert.messageText = "Rename Bin"
         alert.addButton(withTitle: "Rename")
         alert.addButton(withTitle: "Cancel")
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-        field.stringValue = fence.title
+        field.stringValue = bin.title
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let trimmed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        fence.title = trimmed.isEmpty ? fence.title : trimmed
-        (windows[id]?.backdrop.contentView as? FenceBackdropView)?.fence = fence
-        store.updateFence(fence)
+        bin.title = trimmed.isEmpty ? bin.title : trimmed
+        (windows[id]?.backdrop.contentView as? BinBackdropView)?.bin = bin
+        store.updateBin(bin)
     }
 
     private var colorTargetID: UUID?
 
     private func changeColor(_ id: UUID) {
-        guard let fence = fence(for: id) else { return }
+        guard let bin = bin(for: id) else { return }
         colorTargetID = id
         let panel = NSColorPanel.shared
         panel.setTarget(self)
         panel.setAction(#selector(colorPanelChanged(_:)))
-        panel.color = NSColor(hex: fence.colorHex)
+        panel.color = NSColor(hex: bin.colorHex)
         panel.isContinuous = true
         panel.orderFront(nil)
     }
 
     @objc private func colorPanelChanged(_ sender: NSColorPanel) {
-        guard let id = colorTargetID, var fence = fence(for: id) else { return }
-        fence.colorHex = sender.color.hexString
-        (windows[id]?.backdrop.contentView as? FenceBackdropView)?.fence = fence
-        store.updateFence(fence)
+        guard let id = colorTargetID, var bin = bin(for: id) else { return }
+        bin.colorHex = sender.color.hexString
+        (windows[id]?.backdrop.contentView as? BinBackdropView)?.bin = bin
+        store.updateBin(bin)
     }
 
-    private func deleteFence(_ id: UUID) {
-        guard let fence = fence(for: id) else { return }
+    private func deleteBin(_ id: UUID) {
+        guard let bin = bin(for: id) else { return }
         let alert = NSAlert()
-        alert.messageText = "Delete “\(fence.title)”?"
-        alert.informativeText = "This removes the fence. Nothing on your desktop is deleted or moved."
+        alert.messageText = "Delete “\(bin.title)”?"
+        alert.informativeText = "This removes the bin. Nothing on your desktop is deleted or moved."
         alert.addButton(withTitle: "Delete")
         alert.addButton(withTitle: "Cancel")
         alert.alertStyle = .warning
         if alert.runModal() == .alertFirstButtonReturn {
-            store.removeFence(id: id)
+            store.removeBin(id: id)
         }
     }
 
-    /// Moving a fence carries the icons inside it along, so a fence acts as a
+    /// Moving a bin carries the icons inside it along, so a bin acts as a
     /// real container rather than a backdrop icons happen to sit on. The
     /// icons haven't moved during the drag, so membership is decided by
-    /// testing their current positions against where the fence started.
-    private func moveContainedIcons(from startFrame: NSRect, to endFrame: NSRect, fence: inout Fence) {
+    /// testing their current positions against where the bin started.
+    private func moveContainedIcons(from startFrame: NSRect, to endFrame: NSRect, bin: inout Bin) {
         guard let screenHeight = primaryScreenHeight() else { return }
         let startRect = finderSpaceRect(for: startFrame, screenHeight: screenHeight)
         let contained = FinderDesktopController.currentDesktopItems().filter {
@@ -429,16 +429,16 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         let dx = Double(endFrame.origin.x - startFrame.origin.x)
         let dy = Double(endFrame.origin.y - startFrame.origin.y)
         // AppKit's y grows upward, Finder's desktop coordinates grow downward.
-        let moved = contained.map { FenceMember(name: $0.name, x: $0.x + dx, y: $0.y - dy) }
+        let moved = contained.map { BinMember(name: $0.name, x: $0.x + dx, y: $0.y - dy) }
 
         FinderDesktopController.setPositions(moved)
-        fence.members = moved
+        bin.members = moved
     }
 
     // MARK: - Icon capture / restore
 
     private func captureIcons(_ id: UUID) {
-        guard var fence = fence(for: id),
+        guard var bin = bin(for: id),
               let set = windows[id],
               let screenHeight = primaryScreenHeight() else { return }
 
@@ -446,13 +446,13 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         let matched = FinderDesktopController.currentDesktopItems().filter {
             rect.contains(NSPoint(x: $0.x, y: $0.y))
         }
-        fence.members = matched.map { FenceMember(name: $0.name, x: $0.x, y: $0.y) }
-        store.updateFence(fence)
+        bin.members = matched.map { BinMember(name: $0.name, x: $0.x, y: $0.y) }
+        store.updateBin(bin)
     }
 
     private func restoreIcons(_ id: UUID) {
-        guard let fence = fence(for: id) else { return }
-        FinderDesktopController.setPositions(fence.members)
+        guard let bin = bin(for: id) else { return }
+        FinderDesktopController.setPositions(bin.members)
     }
 
     /// Forces an immediate layout pass instead of waiting for the timer.
@@ -460,9 +460,9 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         performGridSnapPass()
     }
 
-    func restoreAllFences() {
-        for fence in store.fences {
-            FinderDesktopController.setPositions(fence.members)
+    func restoreAllBins() {
+        for bin in store.bins {
+            FinderDesktopController.setPositions(bin.members)
         }
     }
 
@@ -487,20 +487,20 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         let maxRows: Int
     }
 
-    /// Finds icons sitting inside each expanded fence and nudges any that
-    /// are off-grid onto that fence's grid, so a dropped or rearranged icon
+    /// Finds icons sitting inside each expanded bin and nudges any that
+    /// are off-grid onto that bin's grid, so a dropped or rearranged icon
     /// settles into place the way Finder's own desktop grid behaves.
     private func performGridSnapPass() {
-        // Don't reshuffle icons while a fence is mid-drag or mid-resize.
+        // Don't reshuffle icons while a bin is mid-drag or mid-resize.
         guard gestureStartFrame == nil, SettingsStore.shared.snapEnabled else { return }
-        guard !store.fences.isEmpty, let screenHeight = primaryScreenHeight() else { return }
+        guard !store.bins.isEmpty, let screenHeight = primaryScreenHeight() else { return }
         let allItems = FinderDesktopController.currentDesktopItems()
         guard !allItems.isEmpty else { return }
 
-        var updates: [FenceMember] = []
+        var updates: [BinMember] = []
 
-        for fence in store.fences {
-            guard let set = windows[fence.id], !fence.isCollapsed else { continue }
+        for bin in store.bins {
+            guard let set = windows[bin.id], !bin.isCollapsed else { continue }
             let frame = set.backdrop.frame
             guard let metrics = gridMetrics(forFrame: frame, screenHeight: Double(screenHeight)) else { continue }
 
@@ -516,7 +516,7 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
                 let targetX = metrics.originX + Double(col) * metrics.cellWidth
                 let targetY = metrics.originY + Double(row) * metrics.cellHeight
                 if abs(targetX - item.x) > 2 || abs(targetY - item.y) > 2 {
-                    updates.append(FenceMember(name: item.name, x: targetX, y: targetY))
+                    updates.append(BinMember(name: item.name, x: targetX, y: targetY))
                 }
             }
         }
@@ -531,9 +531,9 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         let cellWidth = settings.gridCellWidth
         let cellHeight = settings.gridCellHeight
 
-        let top = screenHeight - Double(frame.maxY) + Double(FenceMetrics.titleBarHeight)
+        let top = screenHeight - Double(frame.maxY) + Double(BinMetrics.titleBarHeight)
         let usableWidth = Double(frame.width) - 2 * Self.gridMargin
-        let usableHeight = Double(frame.height) - Double(FenceMetrics.titleBarHeight) - 2 * Self.gridMargin
+        let usableHeight = Double(frame.height) - Double(BinMetrics.titleBarHeight) - 2 * Self.gridMargin
         guard usableWidth >= cellWidth, usableHeight >= cellHeight else { return nil }
 
         return GridMetrics(
@@ -573,7 +573,7 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         return placements
     }
 
-    /// Refills the fence from its top-left in reading order, leaving no
+    /// Refills the bin from its top-left in reading order, leaving no
     /// empty cells between icons.
     private func packedPlacements(for items: [FinderDesktopController.Item], metrics: GridMetrics) -> [Placement] {
         let ordered = items.sorted { lhs, rhs in
@@ -587,7 +587,7 @@ final class FenceWindowController: NSObject, FenceHitViewDelegate {
         for (index, item) in ordered.enumerated() {
             let col = index % metrics.maxCols
             let row = index / metrics.maxCols
-            guard row < metrics.maxRows else { break } // fence is full
+            guard row < metrics.maxRows else { break } // bin is full
             placements.append((item, col, row))
         }
         return placements

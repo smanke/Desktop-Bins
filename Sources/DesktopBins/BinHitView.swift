@@ -1,33 +1,33 @@
 import AppKit
 
-protocol FenceHitViewDelegate: AnyObject {
-    func fenceHitViewDidBeginGesture(_ view: FenceHitView)
-    func fenceHitView(_ view: FenceHitView, didDragBy delta: CGSize)
-    func fenceHitViewDidEndGesture(_ view: FenceHitView)
-    func fenceHitViewRequestsToggleCollapse(_ view: FenceHitView)
-    func fenceHitViewContextMenu(_ view: FenceHitView) -> NSMenu
-    func fenceHitView(_ view: FenceHitView, didDropFileURLs urls: [URL], atScreenPoint screenPoint: NSPoint)
+protocol BinHitViewDelegate: AnyObject {
+    func binHitViewDidBeginGesture(_ view: BinHitView)
+    func binHitView(_ view: BinHitView, didDragBy delta: CGSize)
+    func binHitViewDidEndGesture(_ view: BinHitView)
+    func binHitViewRequestsToggleCollapse(_ view: BinHitView)
+    func binHitViewContextMenu(_ view: BinHitView) -> NSMenu
+    func binHitView(_ view: BinHitView, didDropFileURLs urls: [URL], atScreenPoint screenPoint: NSPoint)
 }
 
 /// An invisible click target layered above Finder's desktop icons. One
-/// covers the fence's title bar strip (drag to move, double-click to
+/// covers the bin's title bar strip (drag to move, double-click to
 /// collapse), another the resize corner. Deliberately tiny so that almost
-/// all of the fence body stays live Finder desktop.
-final class FenceHitView: NSView {
+/// all of the bin body stays live Finder desktop.
+final class BinHitView: NSView {
     enum Kind {
         case titleBar
         case resizeHandle
     }
 
     let kind: Kind
-    let fenceID: UUID
-    weak var delegate: FenceHitViewDelegate?
+    let binID: UUID
+    weak var delegate: BinHitViewDelegate?
 
     private var dragStartMouse: NSPoint?
 
-    init(kind: Kind, fenceID: UUID) {
+    init(kind: Kind, binID: UUID) {
         self.kind = kind
-        self.fenceID = fenceID
+        self.binID = binID
         super.init(frame: .zero)
         // These strips sit above Finder's icon layer, so without this a file
         // dropped on them is refused and springs back to where it came from.
@@ -47,28 +47,28 @@ final class FenceHitView: NSView {
             return
         }
         if kind == .titleBar && event.clickCount == 2 {
-            delegate?.fenceHitViewRequestsToggleCollapse(self)
+            delegate?.binHitViewRequestsToggleCollapse(self)
             return
         }
         // Screen coordinates, since our own window moves during the drag.
         dragStartMouse = NSEvent.mouseLocation
-        delegate?.fenceHitViewDidBeginGesture(self)
+        delegate?.binHitViewDidBeginGesture(self)
     }
 
     override func mouseDragged(with event: NSEvent) {
         guard let start = dragStartMouse else { return }
         let now = NSEvent.mouseLocation
-        delegate?.fenceHitView(self, didDragBy: CGSize(width: now.x - start.x, height: now.y - start.y))
+        delegate?.binHitView(self, didDragBy: CGSize(width: now.x - start.x, height: now.y - start.y))
     }
 
     override func mouseUp(with event: NSEvent) {
         guard dragStartMouse != nil else { return }
         dragStartMouse = nil
-        delegate?.fenceHitViewDidEndGesture(self)
+        delegate?.binHitViewDidEndGesture(self)
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
-        delegate?.fenceHitViewContextMenu(self)
+        delegate?.binHitViewContextMenu(self)
     }
 
     // MARK: - Drag destination
@@ -85,7 +85,7 @@ final class FenceHitView: NSView {
         let urls = droppableURLs(from: sender)
         guard !urls.isEmpty, let window else { return false }
         let screenPoint = window.convertPoint(toScreen: sender.draggingLocation)
-        delegate?.fenceHitView(self, didDropFileURLs: urls, atScreenPoint: screenPoint)
+        delegate?.binHitView(self, didDropFileURLs: urls, atScreenPoint: screenPoint)
         return true
     }
 
@@ -94,7 +94,7 @@ final class FenceHitView: NSView {
     }
 
     private func showMenu(at point: NSPoint) {
-        guard let menu = delegate?.fenceHitViewContextMenu(self) else { return }
+        guard let menu = delegate?.binHitViewContextMenu(self) else { return }
         menu.popUp(positioning: nil, at: point, in: self)
     }
 }

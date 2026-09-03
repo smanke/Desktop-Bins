@@ -1,14 +1,14 @@
 import Foundation
 
-/// A desktop icon captured into a fence, remembered by name and its
+/// A desktop icon captured into a bin, remembered by name and its
 /// Finder-native desktop position at capture time.
-struct FenceMember: Codable, Equatable {
+struct BinMember: Codable, Equatable {
     var name: String
     var x: Double
     var y: Double
 }
 
-struct Fence: Identifiable, Codable, Equatable {
+struct Bin: Identifiable, Codable, Equatable {
     var id: UUID
     var title: String
     var x: Double
@@ -17,7 +17,7 @@ struct Fence: Identifiable, Codable, Equatable {
     var height: Double
     var colorHex: String
     var isCollapsed: Bool
-    var members: [FenceMember]
+    var members: [BinMember]
 
     init(
         id: UUID = UUID(),
@@ -28,7 +28,7 @@ struct Fence: Identifiable, Codable, Equatable {
         height: Double,
         colorHex: String = "3B82F6",
         isCollapsed: Bool = false,
-        members: [FenceMember] = []
+        members: [BinMember] = []
     ) {
         self.id = id
         self.title = title
@@ -51,6 +51,6 @@ struct Fence: Identifiable, Codable, Equatable {
         height = try container.decode(Double.self, forKey: .height)
         colorHex = try container.decode(String.self, forKey: .colorHex)
         isCollapsed = try container.decode(Bool.self, forKey: .isCollapsed)
-        members = try container.decodeIfPresent([FenceMember].self, forKey: .members) ?? []
+        members = try container.decodeIfPresent([BinMember].self, forKey: .members) ?? []
     }
 }

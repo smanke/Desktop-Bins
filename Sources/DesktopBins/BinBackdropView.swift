@@ -1,15 +1,15 @@
 import AppKit
 
-/// Draws the whole fence — body fill, title bar strip, title text and the
+/// Draws the whole bin — body fill, title bar strip, title text and the
 /// resize grip. Purely visual: its window sits below Finder's desktop icons
-/// and ignores mouse events, so all input is handled by FenceHitView.
-final class FenceBackdropView: NSView {
-    var fence: Fence {
+/// and ignores mouse events, so all input is handled by BinHitView.
+final class BinBackdropView: NSView {
+    var bin: Bin {
         didSet { needsDisplay = true }
     }
 
-    init(fence: Fence) {
-        self.fence = fence
+    init(bin: Bin) {
+        self.bin = bin
         super.init(frame: .zero)
         wantsLayer = true
     }
@@ -17,28 +17,28 @@ final class FenceBackdropView: NSView {
     required init?(coder: NSCoder) { fatalError("init(coder:) not implemented") }
 
     private var titleBarRect: NSRect {
-        NSRect(x: 0, y: bounds.height - FenceMetrics.titleBarHeight, width: bounds.width, height: FenceMetrics.titleBarHeight)
+        NSRect(x: 0, y: bounds.height - BinMetrics.titleBarHeight, width: bounds.width, height: BinMetrics.titleBarHeight)
     }
 
     private var resizeHandleRect: NSRect {
-        NSRect(x: bounds.width - FenceMetrics.resizeHandleSize, y: 0, width: FenceMetrics.resizeHandleSize, height: FenceMetrics.resizeHandleSize)
+        NSRect(x: bounds.width - BinMetrics.resizeHandleSize, y: 0, width: BinMetrics.resizeHandleSize, height: BinMetrics.resizeHandleSize)
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        let color = NSColor(hex: fence.colorHex)
-        let path = NSBezierPath(roundedRect: bounds, xRadius: FenceMetrics.cornerRadius, yRadius: FenceMetrics.cornerRadius)
+        let color = NSColor(hex: bin.colorHex)
+        let path = NSBezierPath(roundedRect: bounds, xRadius: BinMetrics.cornerRadius, yRadius: BinMetrics.cornerRadius)
 
         color.withAlphaComponent(0.14).setFill()
         path.fill()
 
-        if fence.isCollapsed {
+        if bin.isCollapsed {
             color.withAlphaComponent(0.55).setFill()
             path.fill()
         } else {
             NSGraphicsContext.saveGraphicsState()
             NSBezierPath(rect: titleBarRect).addClip()
             color.withAlphaComponent(0.55).setFill()
-            NSBezierPath(roundedRect: bounds, xRadius: FenceMetrics.cornerRadius, yRadius: FenceMetrics.cornerRadius).fill()
+            NSBezierPath(roundedRect: bounds, xRadius: BinMetrics.cornerRadius, yRadius: BinMetrics.cornerRadius).fill()
             NSGraphicsContext.restoreGraphicsState()
         }
 
@@ -46,7 +46,7 @@ final class FenceBackdropView: NSView {
         path.lineWidth = 1.5
         path.stroke()
 
-        let titleRect = fence.isCollapsed ? bounds : titleBarRect
+        let titleRect = bin.isCollapsed ? bounds : titleBarRect
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
         paragraph.lineBreakMode = .byTruncatingTail
@@ -59,12 +59,12 @@ final class FenceBackdropView: NSView {
         let textRect = titleRect.insetBy(dx: 8, dy: 0)
         let textHeight = font.boundingRectForFont.height
         let centeredY = textRect.origin.y + (textRect.height - textHeight) / 2
-        fence.title.draw(
+        bin.title.draw(
             in: NSRect(x: textRect.origin.x, y: centeredY, width: textRect.width, height: textHeight),
             withAttributes: attrs
         )
 
-        if !fence.isCollapsed {
+        if !bin.isCollapsed {
             let handle = resizeHandleRect.insetBy(dx: 5, dy: 5)
             let grip = NSBezierPath()
             grip.move(to: NSPoint(x: handle.minX, y: handle.minY))

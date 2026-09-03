@@ -1,17 +1,17 @@
 import AppKit
 
-/// Each fence is drawn with two kinds of window, because macOS gives us no
+/// Each bin is drawn with two kinds of window, because macOS gives us no
 /// single window level that is both visible behind desktop icons *and* able
 /// to receive clicks:
 ///
 /// - `.backdrop` sits just above the wallpaper but BELOW Finder's desktop
-///   icon layer, and ignores mouse events entirely. It draws the fence. The
-///   whole fence body is therefore still plain Finder desktop, so icons can
+///   icon layer, and ignores mouse events entirely. It draws the bin. The
+///   whole bin body is therefore still plain Finder desktop, so icons can
 ///   be dragged into it and rearranged exactly as normal.
 /// - `.chrome` sits ABOVE the icon layer so it actually receives clicks, and
 ///   is used only for small invisible hit targets (the title bar strip and
 ///   the resize corner) that would otherwise be unreachable.
-final class FenceWindow: NSWindow {
+final class BinWindow: NSWindow {
     enum Role {
         case backdrop
         case chrome

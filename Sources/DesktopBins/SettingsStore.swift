@@ -1,6 +1,6 @@
 import Foundation
 
-/// User-tunable behaviour for how fences arrange the icons inside them,
+/// User-tunable behaviour for how bins arrange the icons inside them,
 /// persisted in UserDefaults.
 final class SettingsStore: ObservableObject {
     static let shared = SettingsStore()
@@ -15,7 +15,7 @@ final class SettingsStore: ObservableObject {
     static let defaultCellWidth: Double = 112
     static let defaultCellHeight: Double = 112
 
-    /// Called whenever a value changes so the fence controller can re-run a
+    /// Called whenever a value changes so the bin controller can re-run a
     /// layout pass immediately instead of waiting for its next tick.
     var onChange: (() -> Void)?
 

@@ -11,11 +11,11 @@ enum FinderAutomation {
     /// Shown only after Finder has actually refused us (Apple Event -1743).
     static func presentDeniedAlert() {
         let alert = NSAlert()
-        alert.messageText = "Desktop Fences can’t control Finder"
+        alert.messageText = "Desktop Bins can’t control Finder"
         alert.informativeText = """
-        Fences organize icons by asking Finder to move them, which needs your permission.
+        Bins organize icons by asking Finder to move them, which needs your permission.
 
-        Open System Settings › Privacy & Security › Automation, find Desktop Fences, and turn on Finder.
+        Open System Settings › Privacy & Security › Automation, find Desktop Bins, and turn on Finder.
         """
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Open System Settings")

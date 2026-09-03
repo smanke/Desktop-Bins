@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>DesktopFences</string>
+	<string>DesktopBins</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.smanke.DesktopFences</string>
+	<string>com.smanke.DesktopBins</string>
 	<key>CFBundleName</key>
-	<string>Desktop Fences</string>
+	<string>Desktop Bins</string>
 	<key>CFBundleDisplayName</key>
-	<string>Desktop Fences</string>
+	<string>Desktop Bins</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -23,6 +23,6 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Personal use</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Desktop Fences needs to control Finder to capture and restore the positions of icons inside your fences.</string>
+	<string>Desktop Bins needs to control Finder to capture and restore the positions of icons inside your bins.</string>
 </dict>
 </plist>
