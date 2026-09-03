@@ -79,18 +79,38 @@ Equally, do not pre-flight the permission with
 thread there suppresses the very prompt it is meant to raise. Just send a
 real Apple Event once the run loop is running.
 
-### Known limitation: ad-hoc signing
+### Code signing
 
-The app is ad-hoc signed, so macOS identifies it by a code hash that changes
-on **every rebuild**, which invalidates the Automation grant each time. When
-that happens, Finder control fails silently; recover with:
+`build_app.sh` signs with a Developer ID Application identity, picking the
+first one in the keychain (override with `CODESIGN_IDENTITY`). This matters
+for more than distribution: TCC keys a permission to the app's *designated
+requirement*, and a certificate-backed signature produces one built from the
+bundle identifier and team, with no code hash in it:
+
+```
+identifier "com.smanke.DesktopBins" and anchor apple generic
+  and certificate leaf[subject.OU] = "<team id>"
+```
+
+That requirement is identical across rebuilds, so the Finder Automation
+grant survives them.
+
+Ad-hoc signing (the fallback when no identity is found) has no stable
+designated requirement — macOS identifies the app by a code hash that
+changes on every rebuild, silently revoking Automation access each time. If
+that happens, recover with:
 
 ```bash
 tccutil reset AppleEvents com.smanke.DesktopBins
 ```
 
-then relaunch and approve the prompt. Signing with a stable (self-signed)
-certificate would make the grant persist across builds.
+then relaunch and approve the prompt.
+
+The app is signed but **not notarized**, so `spctl` rejects it as
+"Unnotarized Developer ID". That is harmless for a locally built copy, which
+carries no quarantine attribute, but a build copied to another Mac will be
+blocked by Gatekeeper until it is notarized (`xcrun notarytool`) or the
+quarantine attribute is removed.
 
 ### Other notes
 

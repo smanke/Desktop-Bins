@@ -30,12 +30,34 @@ if [ -f "Resources/AppIcon.icns" ]; then
   cp "Resources/AppIcon.icns" "${APP_DIR}/Contents/Resources/AppIcon.icns"
 fi
 
-echo "Ad-hoc code signing (stable identifier: ${BUNDLE_ID})..."
+# Prefer a real Developer ID identity over ad-hoc signing. Ad-hoc signatures
+# have no stable designated requirement, so the app's identity changes on
+# every rebuild and macOS silently revokes its Automation (Finder) grant each
+# time. Signing with a certificate keeps that permission across builds.
+# Override by exporting CODESIGN_IDENTITY.
+SIGN_IDENTITY="${CODESIGN_IDENTITY:-}"
+if [ -z "${SIGN_IDENTITY}" ]; then
+  SIGN_IDENTITY=$(security find-identity -v -p codesigning 2>/dev/null \
+    | grep "Developer ID Application" | head -n 1 | sed -E 's/.*"(.*)".*/\1/')
+fi
+
 # The apple-events entitlement is required under the hardened runtime, or
 # Finder automation is blocked before macOS can even ask the user for consent.
-codesign --force --deep --options runtime \
-  --entitlements "Resources/DesktopBins.entitlements" \
-  --identifier "${BUNDLE_ID}" --sign - "${APP_DIR}"
+if [ -n "${SIGN_IDENTITY}" ]; then
+  echo "Signing with: ${SIGN_IDENTITY}"
+  codesign --force --options runtime \
+    --entitlements "Resources/DesktopBins.entitlements" \
+    --identifier "${BUNDLE_ID}" --sign "${SIGN_IDENTITY}" "${APP_DIR}"
+else
+  echo "WARNING: no Developer ID identity found — falling back to ad-hoc."
+  echo "         Finder automation permission will need re-approving after each rebuild."
+  codesign --force --options runtime \
+    --entitlements "Resources/DesktopBins.entitlements" \
+    --identifier "${BUNDLE_ID}" --sign - "${APP_DIR}"
+fi
+
+echo "Designated requirement (this is what TCC keys the permission on):"
+codesign -d -r- "${APP_DIR}" 2>&1 | grep "designated" || true
 
 echo "Embedded entitlements:"
 codesign -d --entitlements - --xml "${APP_DIR}" 2>/dev/null | plutil -convert xml1 -o - - 2>/dev/null | grep -A1 apple-events || true
