@@ -43,6 +43,38 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
         SettingsStore.shared.onChange = { [weak self] in
             self?.performGridSnapPass()
         }
+
+        // Monitors being attached, detached or rearranged moves bins back to
+        // their own display, or parks them until it returns.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(screenConfigurationChanged),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
+        adoptCurrentDisplayForUnpinnedBins()
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func screenConfigurationChanged() {
+        syncWindows()
+        performGridSnapPass()
+    }
+
+    /// Layouts saved before per-display positions existed only have absolute
+    /// coordinates; attach each of those to whichever display it is sitting
+    /// on now, so it starts travelling with that monitor.
+    private func adoptCurrentDisplayForUnpinnedBins() {
+        for var bin in store.bins where bin.displayUUID == nil {
+            let frame = NSRect(x: bin.x, y: bin.y, width: bin.width, height: bin.height)
+            pinToDisplay(&bin, frame: frame)
+            if bin.displayUUID != nil {
+                store.updateBin(bin)
+            }
+        }
     }
 
     // MARK: - Window lifecycle
@@ -56,22 +88,32 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
         }
 
         for bin in store.bins {
-            if let set = windows[bin.id] {
-                (set.backdrop.contentView as? BinBackdropView)?.bin = bin
-                layout(set: set, bin: bin)
+            let set: BinWindows
+            if let existing = windows[bin.id] {
+                (existing.backdrop.contentView as? BinBackdropView)?.bin = bin
+                set = existing
             } else {
-                let set = makeWindows(for: bin)
+                set = makeWindows(for: bin)
                 windows[bin.id] = set
-                layout(set: set, bin: bin)
-                if isVisible {
-                    set.all.forEach { $0.orderFront(nil) }
-                }
+            }
+
+            // A bin whose display is currently detached stays in the store
+            // but off screen, ready for when that monitor comes back.
+            guard let frame = frameOf(bin) else {
+                set.all.forEach { $0.orderOut(nil) }
+                continue
+            }
+            layout(set: set, bin: bin, frame: frame)
+            if isVisible {
+                set.backdrop.orderFront(nil)
+                set.titleBar.orderFront(nil)
+                if !bin.isCollapsed { set.resizeHandle.orderFront(nil) }
             }
         }
     }
 
     private func makeWindows(for bin: Bin) -> BinWindows {
-        let frame = frameOf(bin)
+        let frame = frameOf(bin) ?? NSRect(x: bin.x, y: bin.y, width: bin.width, height: bin.height)
 
         let backdrop = BinWindow(contentRect: frame, role: .backdrop)
         let backdropView = BinBackdropView(bin: bin)
@@ -91,8 +133,38 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
         return BinWindows(backdrop: backdrop, titleBar: titleBar, resizeHandle: resizeHandle)
     }
 
-    private func frameOf(_ bin: Bin) -> NSRect {
-        NSRect(x: bin.x, y: bin.y, width: bin.width, height: bin.height)
+    /// Where a bin should sit right now. When it is pinned to a display,
+    /// its stored offset is resolved against that display's current origin,
+    /// so rearranging monitors doesn't drag bins around with the coordinate
+    /// space. Returns nil when the bin's display isn't attached.
+    private func frameOf(_ bin: Bin) -> NSRect? {
+        if let uuid = bin.displayUUID {
+            guard let screen = DisplayIdentity.screen(withUUID: uuid) else { return nil }
+            let originX = screen.frame.origin.x + CGFloat(bin.relativeX ?? 0)
+            let originY = screen.frame.origin.y + CGFloat(bin.relativeY ?? 0)
+            return NSRect(x: originX, y: originY, width: bin.width, height: bin.height)
+        }
+        return NSRect(x: bin.x, y: bin.y, width: bin.width, height: bin.height)
+    }
+
+    /// Records which display a bin now sits on, storing its position as an
+    /// offset within that display.
+    private func pinToDisplay(_ bin: inout Bin, frame: NSRect) {
+        bin.x = Double(frame.origin.x)
+        bin.y = Double(frame.origin.y)
+        bin.width = Double(frame.width)
+        bin.height = Double(frame.height)
+
+        guard let screen = DisplayIdentity.screen(containing: frame),
+              let uuid = DisplayIdentity.uuid(for: screen) else {
+            bin.displayUUID = nil
+            bin.relativeX = nil
+            bin.relativeY = nil
+            return
+        }
+        bin.displayUUID = uuid
+        bin.relativeX = Double(frame.origin.x - screen.frame.origin.x)
+        bin.relativeY = Double(frame.origin.y - screen.frame.origin.y)
     }
 
     private func titleBarFrame(for frame: NSRect) -> NSRect {
@@ -110,7 +182,7 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
 
     /// Positions the whole window set to match a bin frame.
     private func layout(set: BinWindows, bin: Bin, frame: NSRect? = nil) {
-        let frame = frame ?? frameOf(bin)
+        guard let frame = frame ?? frameOf(bin) else { return }
         set.backdrop.setFrame(frame, display: true)
         set.backdrop.contentView?.frame = NSRect(origin: .zero, size: frame.size)
         set.backdrop.contentView?.needsDisplay = true
@@ -144,14 +216,21 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
         let width: CGFloat = 260
         let height: CGFloat = 240
         let colors = ["3B82F6", "10B981", "F59E0B", "EF4444", "8B5CF6", "EC4899"]
-        let bin = Bin(
+        let frame = NSRect(
+            x: screenFrame.midX - width / 2,
+            y: screenFrame.midY - height / 2,
+            width: width,
+            height: height
+        )
+        var bin = Bin(
             title: "New Bin",
-            x: Double(screenFrame.midX - width / 2),
-            y: Double(screenFrame.midY - height / 2),
+            x: Double(frame.origin.x),
+            y: Double(frame.origin.y),
             width: Double(width),
             height: Double(height),
             colorHex: colors[store.bins.count % colors.count]
         )
+        pinToDisplay(&bin, frame: frame)
         store.addBin(bin)
     }
 
@@ -252,10 +331,9 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
         }
         dragMembers = []
 
-        bin.x = Double(frame.origin.x)
-        bin.y = Double(frame.origin.y)
-        bin.width = Double(frame.width)
-        bin.height = Double(frame.height)
+        // Dragging a bin can carry it to another monitor, so re-record which
+        // display owns it and where it sits within that display.
+        pinToDisplay(&bin, frame: frame)
         (set.backdrop.contentView as? BinBackdropView)?.bin = bin
         store.updateBin(bin)
     }
@@ -274,10 +352,7 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
         }
 
         let newFrame = NSRect(x: frame.minX, y: frame.maxY - newHeight, width: frame.width, height: newHeight)
-        bin.x = Double(newFrame.origin.x)
-        bin.y = Double(newFrame.origin.y)
-        bin.width = Double(newFrame.width)
-        bin.height = Double(newFrame.height)
+        pinToDisplay(&bin, frame: newFrame)
 
         (set.backdrop.contentView as? BinBackdropView)?.bin = bin
         layout(set: set, bin: bin, frame: newFrame)

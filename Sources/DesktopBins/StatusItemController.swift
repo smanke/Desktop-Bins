@@ -65,6 +65,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         let visibilityTitle = windowController.isVisible ? "Hide All Bins" : "Show All Bins"
         menu.addItem(withTitle: visibilityTitle, action: #selector(toggleVisibility), keyEquivalent: "", target: self)
+
+        let loginItem = menu.addItem(withTitle: "Open at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "", target: self)
+        loginItem.state = settings.launchAtLogin ? .on : .off
         menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",", target: self)
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Desktop Bins", action: #selector(quit), keyEquivalent: "q", target: self)
@@ -99,6 +102,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func toggleVisibility() {
         windowController.setAllVisible(!windowController.isVisible)
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        SettingsStore.shared.launchAtLogin.toggle()
     }
 
     @objc private func showSettings() {

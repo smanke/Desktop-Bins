@@ -5,6 +5,11 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            Toggle("Open Desktop Bins at login", isOn: $settings.launchAtLogin)
+                .font(.system(size: 13, weight: .semibold))
+
+            Divider()
+
             Toggle("Snap icons to a grid inside bins", isOn: $settings.snapEnabled)
                 .font(.system(size: 13, weight: .semibold))
 
@@ -40,10 +45,13 @@ struct SettingsView: View {
             HStack {
                 Button("Reset to Defaults") { settings.resetToDefaults() }
                 Spacer()
+                Text("Desktop Bins \(AppInfo.displayVersion)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
         .padding(20)
-        .frame(width: 420, height: 350)
+        .frame(width: 420, height: 420)
     }
 
     private func spacingSlider(label: String, value: Binding<Double>) -> some View {

@@ -19,6 +19,18 @@ final class SettingsStore: ObservableObject {
     /// layout pass immediately instead of waiting for its next tick.
     var onChange: (() -> Void)?
 
+    /// Backed by the system login-item registration rather than UserDefaults,
+    /// since macOS is the source of truth and the user can turn it off in
+    /// System Settings behind our back.
+    @Published var launchAtLogin: Bool {
+        didSet {
+            guard launchAtLogin != LaunchAtLoginController.isEnabled else { return }
+            if !LaunchAtLoginController.setEnabled(launchAtLogin) {
+                launchAtLogin = LaunchAtLoginController.isEnabled
+            }
+        }
+    }
+
     @Published var snapEnabled: Bool { didSet { save(); onChange?() } }
     @Published var gridCellWidth: Double { didSet { save(); onChange?() } }
     @Published var gridCellHeight: Double { didSet { save(); onChange?() } }
@@ -34,6 +46,7 @@ final class SettingsStore: ObservableObject {
             // reads as erratic rather than as a preserved layout.
             Key.packIcons: true
         ])
+        launchAtLogin = LaunchAtLoginController.isEnabled
         snapEnabled = defaults.bool(forKey: Key.snapEnabled)
         gridCellWidth = defaults.double(forKey: Key.gridCellWidth)
         gridCellHeight = defaults.double(forKey: Key.gridCellHeight)

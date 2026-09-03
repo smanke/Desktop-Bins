@@ -14,6 +14,8 @@ grid, and carry them along when the region is moved.
 - Rename, recolor and delete via right-click or ⌘-click on the title bar
 - Save / restore an icon layout per bin
 - Grid spacing presets and settings in the menu bar
+- Bins remember which physical monitor they belong to
+- Optional launch at login
 
 ## Building
 
@@ -97,5 +99,24 @@ certificate would make the grant persist across builds.
 - Icons follow a bin drag live, throttled to 50 ms with overlapping frames
   dropped, since each update is an Apple Event round trip. They will trail
   slightly at high drag speeds.
-- Grid layout is anchored to the primary display; secondary displays are not
-  handled yet.
+
+### Multiple displays
+
+Each bin stores the **stable UUID** of the display it sits on
+(`CGDisplayCreateUUIDFromDisplayID`) plus its position relative to that
+display's origin, rather than an absolute screen point.
+
+A raw `CGDirectDisplayID` is not usable for this: the system assigns those
+per session, so the same monitor can return with a different id after being
+unplugged. Storing the offset rather than an absolute point also means bins
+stay where they belong when displays are rearranged and the global
+coordinate space shifts underneath them.
+
+Bins whose display is not currently attached are kept in the store but
+hidden, and reappear in place when that monitor is reconnected. The app
+watches `NSApplication.didChangeScreenParametersNotification` to react to
+monitors being attached, detached or rearranged.
+
+Finder's desktop coordinate space spans all displays and is anchored at the
+primary display's top-left, so the icon grid works on secondary displays
+without any extra conversion.
