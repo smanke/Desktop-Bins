@@ -32,10 +32,15 @@ if ! xcrun notarytool history --keychain-profile "${PROFILE}" >/dev/null 2>&1; t
 fi
 
 # Notarization rejects anything signed without a secure timestamp.
-if ! codesign -dvv "${APP_DIR}" 2>&1 | grep -q "^Timestamp="; then
+# Note: no `grep -q` here — it exits on the first match, which SIGPIPEs
+# codesign, and under `set -o pipefail` that reads as a failed check even
+# when the timestamp is present.
+TIMESTAMP_LINE=$(codesign -dvv "${APP_DIR}" 2>&1 | grep "^Timestamp=" || true)
+if [ -z "${TIMESTAMP_LINE}" ]; then
   echo "Signature has no secure timestamp. Re-run ./build_app.sh (it signs with --timestamp)."
   exit 1
 fi
+echo "Secure ${TIMESTAMP_LINE}"
 
 echo "Zipping bundle for submission..."
 rm -f "${ZIP_PATH}"

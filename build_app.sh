@@ -37,8 +37,10 @@ fi
 # Override by exporting CODESIGN_IDENTITY.
 SIGN_IDENTITY="${CODESIGN_IDENTITY:-}"
 if [ -z "${SIGN_IDENTITY}" ]; then
+  # `|| true` guards against head closing the pipe early, which would trip
+  # pipefail even though the identity was found.
   SIGN_IDENTITY=$(security find-identity -v -p codesigning 2>/dev/null \
-    | grep "Developer ID Application" | head -n 1 | sed -E 's/.*"(.*)".*/\1/')
+    | grep "Developer ID Application" | head -n 1 | sed -E 's/.*"(.*)".*/\1/' || true)
 fi
 
 # The apple-events entitlement is required under the hardened runtime, or
