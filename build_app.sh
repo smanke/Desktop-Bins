@@ -45,7 +45,10 @@ fi
 # Finder automation is blocked before macOS can even ask the user for consent.
 if [ -n "${SIGN_IDENTITY}" ]; then
   echo "Signing with: ${SIGN_IDENTITY}"
-  codesign --force --options runtime \
+  # --timestamp gets a secure timestamp from Apple, which notarization
+  # requires. It needs network access; without it the signature is still
+  # valid locally but notarization will reject it.
+  codesign --force --options runtime --timestamp \
     --entitlements "Resources/DesktopBins.entitlements" \
     --identifier "${BUNDLE_ID}" --sign "${SIGN_IDENTITY}" "${APP_DIR}"
 else
