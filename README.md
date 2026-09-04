@@ -27,6 +27,12 @@ open "/Applications/Desktop Bins.app"
 
 Requires macOS 13+. The build produces a universal (arm64 + x86_64) bundle.
 
+## Installing
+
+Download the `.dmg` from the [latest release](https://github.com/smanke/Desktop-Bins/releases),
+open it, and drag the app onto Applications. The image and the app inside are
+both notarized, so it opens without a Gatekeeper warning.
+
 ## Permissions
 
 The app moves icons by asking Finder to do it over Apple Events, so it needs
@@ -106,11 +112,10 @@ tccutil reset AppleEvents com.smanke.DesktopBins
 
 then relaunch and approve the prompt.
 
-The app is signed but **not notarized**, so `spctl` rejects it as
-"Unnotarized Developer ID". That is harmless for a locally built copy, which
-carries no quarantine attribute, but a build copied to another Mac will be
-blocked by Gatekeeper until it is notarized (`xcrun notarytool`) or the
-quarantine attribute is removed.
+`./notarize.sh` notarizes and staples a build, and `./make_dmg.sh` packages
+it into a signed, notarized `.dmg`. Both the app and the disk image need
+their own ticket: a download picks up a quarantine attribute, and Gatekeeper
+checks the image before it ever looks at the app inside.
 
 ### Other notes
 
