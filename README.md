@@ -17,6 +17,12 @@ grid, and carry them along when the region is moved.
 - Bins remember which physical monitor they belong to
 - Optional launch at login
 
+## Installing
+
+Download the `.dmg` from the [latest release](https://github.com/smanke/Desktop-Bins/releases),
+open it, and drag the app onto Applications. The image and the app inside are
+both notarized, so it opens without a Gatekeeper warning.
+
 ## Building
 
 ```bash
@@ -26,12 +32,6 @@ open "/Applications/Desktop Bins.app"
 ```
 
 Requires macOS 13+. The build produces a universal (arm64 + x86_64) bundle.
-
-## Installing
-
-Download the `.dmg` from the [latest release](https://github.com/smanke/Desktop-Bins/releases),
-open it, and drag the app onto Applications. The image and the app inside are
-both notarized, so it opens without a Gatekeeper warning.
 
 ## Permissions
 
