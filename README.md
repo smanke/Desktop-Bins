@@ -23,6 +23,17 @@ Download the `.dmg` from the [latest release](https://github.com/smanke/Desktop-
 open it, and drag the app onto Applications. The image and the app inside are
 both notarized, so it opens without a Gatekeeper warning.
 
+## Permissions
+
+The app moves icons by asking Finder to do it over Apple Events, so it needs
+**System Settings › Privacy & Security › Automation › Finder**. macOS raises
+that prompt the first time the app sends a real Apple Event — approve it.
+
+Without that permission the app still launches and draws its bins, but
+nothing it asks Finder to do has any effect: icons won't snap to the grid or
+follow a bin when it moves, and macOS reports no error. If bins look inert,
+check this first.
+
 ## Building
 
 ```bash
@@ -32,12 +43,6 @@ open "/Applications/Desktop Bins.app"
 ```
 
 Requires macOS 13+. The build produces a universal (arm64 + x86_64) bundle.
-
-## Permissions
-
-The app moves icons by asking Finder to do it over Apple Events, so it needs
-**System Settings › Privacy & Security › Automation › Finder**. macOS raises
-that prompt the first time the app sends a real Apple Event.
 
 ## Implementation notes
 
