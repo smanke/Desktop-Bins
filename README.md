@@ -18,6 +18,7 @@ grid, and carry them along when the region is moved.
   display rather than vanishing when that monitor is absent
 - "Bring All Bins to Main Display" rescues bins stranded on a monitor that is
   no longer attached
+- Each set of monitors remembers its own arrangement
 - Optional launch at login
 
 ## Installing
@@ -151,6 +152,12 @@ look like the bins were lost. Its stored pin is deliberately left untouched
 so it returns home when its own monitor comes back; it is only re-pinned if
 the user actually moves it. Offsets from a larger monitor are clamped into
 the fallback screen so a bin can't land off-screen.
+
+Each bin also remembers a separate arrangement per monitor setup, keyed by a
+signature of the attached displays. Moving between a desk, a second desk and
+the bare laptop restores whatever layout was last used with each, rather than
+keeping a single position that the previous setup overwrites. A configuration
+seen for the first time records wherever the bins land.
 
 Changing monitors also makes Finder reflow the desktop, scattering icons out
 of their bins. Their saved coordinates are stale at that point — they refer

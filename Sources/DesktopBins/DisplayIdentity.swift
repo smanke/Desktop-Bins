@@ -9,6 +9,16 @@ import AppKit
 /// one used to have. `CGDisplayCreateUUIDFromDisplayID` is stable per physical
 /// display, which is what makes "put this bin back on that monitor" work.
 enum DisplayIdentity {
+    /// A stable fingerprint of the currently attached set of displays.
+    ///
+    /// Used to remember a separate arrangement per monitor setup, so docking
+    /// between a desk, a second desk and the bare laptop restores whatever
+    /// layout was last used with each.
+    static func configurationSignature() -> String {
+        let ids = NSScreen.screens.compactMap { uuid(for: $0) }.sorted()
+        return ids.isEmpty ? "none" : ids.joined(separator: "+")
+    }
+
     static func uuid(for screen: NSScreen) -> String? {
         guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
             return nil

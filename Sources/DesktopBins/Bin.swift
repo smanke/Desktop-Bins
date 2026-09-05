@@ -8,6 +8,15 @@ struct BinMember: Codable, Equatable {
     var y: Double
 }
 
+/// Where a bin sat under one particular set of attached monitors.
+struct BinPlacement: Codable, Equatable {
+    var displayUUID: String
+    var relativeX: Double
+    var relativeY: Double
+    var width: Double
+    var height: Double
+}
+
 struct Bin: Identifiable, Codable, Equatable {
     var id: UUID
     var title: String
@@ -31,6 +40,11 @@ struct Bin: Identifiable, Codable, Equatable {
     var relativeX: Double?
     var relativeY: Double?
 
+    /// Arrangement remembered per monitor setup, keyed by the signature of
+    /// the attached displays. Returning to a setup restores whatever layout
+    /// was last used with it, rather than only remembering one position.
+    var layouts: [String: BinPlacement]
+
     init(
         id: UUID = UUID(),
         title: String,
@@ -43,7 +57,8 @@ struct Bin: Identifiable, Codable, Equatable {
         members: [BinMember] = [],
         displayUUID: String? = nil,
         relativeX: Double? = nil,
-        relativeY: Double? = nil
+        relativeY: Double? = nil,
+        layouts: [String: BinPlacement] = [:]
     ) {
         self.id = id
         self.title = title
@@ -57,6 +72,7 @@ struct Bin: Identifiable, Codable, Equatable {
         self.displayUUID = displayUUID
         self.relativeX = relativeX
         self.relativeY = relativeY
+        self.layouts = layouts
     }
 
     init(from decoder: Decoder) throws {
@@ -73,5 +89,6 @@ struct Bin: Identifiable, Codable, Equatable {
         displayUUID = try container.decodeIfPresent(String.self, forKey: .displayUUID)
         relativeX = try container.decodeIfPresent(Double.self, forKey: .relativeX)
         relativeY = try container.decodeIfPresent(Double.self, forKey: .relativeY)
+        layouts = try container.decodeIfPresent([String: BinPlacement].self, forKey: .layouts) ?? [:]
     }
 }

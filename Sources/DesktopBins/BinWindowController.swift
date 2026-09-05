@@ -57,6 +57,7 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
             object: nil
         )
         adoptCurrentDisplayForUnpinnedBins()
+        recordLayoutForCurrentConfigurationIfNew()
     }
 
     deinit {
@@ -72,6 +73,7 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.syncWindows()
+            self.recordLayoutForCurrentConfigurationIfNew()
             self.regatherAllMembers()
             self.performGridSnapPass()
         }
@@ -235,6 +237,19 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
     /// the bin returns home when its own display comes back; it is only
     /// re-pinned if the user actually moves it.
     private func frameOf(_ bin: Bin) -> NSRect {
+        // A layout remembered for this exact set of monitors wins, so
+        // returning to a previous setup restores that arrangement.
+        let signature = DisplayIdentity.configurationSignature()
+        if let placement = bin.layouts[signature],
+           let screen = DisplayIdentity.screen(withUUID: placement.displayUUID) {
+            return NSRect(
+                x: screen.frame.origin.x + CGFloat(placement.relativeX),
+                y: screen.frame.origin.y + CGFloat(placement.relativeY),
+                width: placement.width,
+                height: placement.height
+            )
+        }
+
         if let uuid = bin.displayUUID, let screen = DisplayIdentity.screen(withUUID: uuid) {
             return NSRect(
                 x: screen.frame.origin.x + CGFloat(bin.relativeX ?? 0),
@@ -295,6 +310,27 @@ final class BinWindowController: NSObject, BinHitViewDelegate {
         bin.displayUUID = uuid
         bin.relativeX = Double(frame.origin.x - screen.frame.origin.x)
         bin.relativeY = Double(frame.origin.y - screen.frame.origin.y)
+
+        // Remember this arrangement against the current set of monitors.
+        bin.layouts[DisplayIdentity.configurationSignature()] = BinPlacement(
+            displayUUID: uuid,
+            relativeX: Double(frame.origin.x - screen.frame.origin.x),
+            relativeY: Double(frame.origin.y - screen.frame.origin.y),
+            width: Double(frame.width),
+            height: Double(frame.height)
+        )
+    }
+
+    /// Records where each bin ended up under a set of monitors we have not
+    /// seen before, so this arrangement becomes the one restored next time.
+    private func recordLayoutForCurrentConfigurationIfNew() {
+        let signature = DisplayIdentity.configurationSignature()
+        guard signature != "none" else { return }
+        for var bin in store.bins where bin.layouts[signature] == nil {
+            var updated = bin
+            pinToDisplay(&updated, frame: frameOf(bin))
+            store.updateBin(updated)
+        }
     }
 
     private func titleBarFrame(for frame: NSRect) -> NSRect {
