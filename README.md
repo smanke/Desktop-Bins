@@ -14,7 +14,10 @@ grid, and carry them along when the region is moved.
 - Rename, recolor and delete via right-click or ⌘-click on the title bar
 - Save / restore an icon layout per bin
 - Grid spacing presets and settings in the menu bar
-- Bins remember which physical monitor they belong to
+- Bins remember which physical monitor they belong to, and appear on the main
+  display rather than vanishing when that monitor is absent
+- "Bring All Bins to Main Display" rescues bins stranded on a monitor that is
+  no longer attached
 - Optional launch at login
 
 ## Installing
@@ -142,10 +145,20 @@ unplugged. Storing the offset rather than an absolute point also means bins
 stay where they belong when displays are rearranged and the global
 coordinate space shifts underneath them.
 
-Bins whose display is not currently attached are kept in the store but
-hidden, and reappear in place when that monitor is reconnected. The app
-watches `NSApplication.didChangeScreenParametersNotification` to react to
-monitors being attached, detached or rearranged.
+A bin whose display is not attached is shown on the main display instead of
+being hidden — plugging a laptop into a different set of monitors should not
+look like the bins were lost. Its stored pin is deliberately left untouched
+so it returns home when its own monitor comes back; it is only re-pinned if
+the user actually moves it. Offsets from a larger monitor are clamped into
+the fallback screen so a bin can't land off-screen.
+
+Changing monitors also makes Finder reflow the desktop, scattering icons out
+of their bins. Their saved coordinates are stale at that point — they refer
+to the old layout — so members are re-laid out on each bin's current grid by
+name rather than by replaying old positions. The app watches
+`NSApplication.didChangeScreenParametersNotification`, coalescing the burst
+of notifications and waiting for Finder to settle before reading positions
+back.
 
 Finder's desktop coordinate space spans all displays and is anchored at the
 primary display's top-left, so the icon grid works on secondary displays

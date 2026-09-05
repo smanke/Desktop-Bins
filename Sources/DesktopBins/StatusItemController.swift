@@ -60,6 +60,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(withTitle: "Arrange Icons Now", action: #selector(arrangeNow), keyEquivalent: "", target: self)
+        menu.addItem(withTitle: "Gather Icons Back Into Bins", action: #selector(regather), keyEquivalent: "", target: self)
+        menu.addItem(withTitle: "Bring All Bins to Main Display", action: #selector(consolidate), keyEquivalent: "", target: self)
         menu.addItem(withTitle: "Restore All Icon Positions", action: #selector(restoreAll), keyEquivalent: "", target: self)
         menu.addItem(.separator())
 
@@ -71,6 +73,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",", target: self)
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Desktop Bins", action: #selector(quit), keyEquivalent: "q", target: self)
+
+        // Version last, as a non-actionable footer.
+        menu.addItem(.separator())
+        let versionItem = NSMenuItem(title: "Desktop Bins \(AppInfo.displayVersion)", action: nil, keyEquivalent: "")
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
     }
 
     @objc private func newBin() {
@@ -94,6 +102,38 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func arrangeNow() {
         windowController.arrangeIconsNow()
+    }
+
+    @objc private func regather() {
+        let count = windowController.regatherAllMembers()
+        report(
+            title: count == 0 ? "Nothing to gather" : "Gathered \(count) icon(s)",
+            detail: count == 0
+                ? "No bin has saved contents to pull back. Use “Save Icon Layout” on a bin first."
+                : "Each bin's saved icons were laid back out on its grid."
+        )
+    }
+
+    @objc private func consolidate() {
+        let alert = NSAlert()
+        alert.messageText = "Bring all bins to the main display?"
+        alert.informativeText = "Every bin will be moved onto this display and re-pinned here, and their saved icons gathered back into them. Use this if bins are stranded on a monitor that is no longer attached."
+        alert.addButton(withTitle: "Bring Them Here")
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let moved = windowController.consolidateBinsToMainDisplay()
+        report(title: "Moved \(moved) bin(s)", detail: "They are now on the main display and pinned to it.")
+    }
+
+    private func report(title: String, detail: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = detail
+        alert.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
     }
 
     @objc private func restoreAll() {
